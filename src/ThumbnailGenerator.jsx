@@ -58,7 +58,7 @@ function drawRoundedRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function renderThumbnail(canvas, config) {
+function renderThumbnail(canvas, config, backgroundImage = null) {
   const ctx = canvas.getContext("2d");
   const W = THUMBNAIL_WIDTH;
   const H = THUMBNAIL_HEIGHT;
@@ -67,30 +67,70 @@ function renderThumbnail(canvas, config) {
 
   const scheme = config.colorScheme || COLOR_SCHEMES[0];
   const layout = config.layout || "centered-impact";
+  const imageDarkness = config.imageDarkness ?? 0.5; // 0 = no darkening, 1 = full dark
 
-  // Background gradient
-  const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, scheme.bg[0]);
-  grad.addColorStop(1, scheme.bg[1]);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+  // Background: either uploaded image or gradient
+  if (backgroundImage) {
+    // Draw image covering canvas (crop to fit 16:9)
+    const imgW = backgroundImage.width;
+    const imgH = backgroundImage.height;
+    const imgAspect = imgW / imgH;
+    const canvasAspect = W / H;
+    
+    let sx, sy, sw, sh;
+    if (imgAspect > canvasAspect) {
+      // Image is wider - crop sides
+      sh = imgH;
+      sw = imgH * canvasAspect;
+      sx = (imgW - sw) / 2;
+      sy = 0;
+    } else {
+      // Image is taller - crop top/bottom
+      sw = imgW;
+      sh = imgW / canvasAspect;
+      sx = 0;
+      sy = (imgH - sh) / 2;
+    }
+    
+    ctx.drawImage(backgroundImage, sx, sy, sw, sh, 0, 0, W, H);
+    
+    // Dark overlay for text readability
+    ctx.fillStyle = `rgba(0, 0, 0, ${imageDarkness})`;
+    ctx.fillRect(0, 0, W, H);
+    
+    // Color tint overlay (subtle)
+    ctx.globalAlpha = 0.15;
+    const tintGrad = ctx.createLinearGradient(0, 0, W, H);
+    tintGrad.addColorStop(0, scheme.bg[0]);
+    tintGrad.addColorStop(1, scheme.bg[1]);
+    ctx.fillStyle = tintGrad;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  } else {
+    // No image - use gradient background
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, scheme.bg[0]);
+    grad.addColorStop(1, scheme.bg[1]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
 
-  // Geometric pattern overlay for visual depth
-  ctx.globalAlpha = 0.08;
-  const seed = (config.headline || "").length; // deterministic-ish
-  for (let i = 0; i < 14; i++) {
-    const cx = ((seed * 137 + i * 311) % 1000) / 1000 * W;
-    const cy = ((seed * 251 + i * 173) % 1000) / 1000 * H;
-    const r = 80 + ((seed * 89 + i * 53) % 200);
-    const circGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    circGrad.addColorStop(0, scheme.accent);
-    circGrad.addColorStop(1, "transparent");
-    ctx.fillStyle = circGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
+    // Geometric pattern overlay for visual depth (only when no image)
+    ctx.globalAlpha = 0.08;
+    const seed = (config.headline || "").length;
+    for (let i = 0; i < 14; i++) {
+      const cx = ((seed * 137 + i * 311) % 1000) / 1000 * W;
+      const cy = ((seed * 251 + i * 173) % 1000) / 1000 * H;
+      const r = 80 + ((seed * 89 + i * 53) % 200);
+      const circGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      circGrad.addColorStop(0, scheme.accent);
+      circGrad.addColorStop(1, "transparent");
+      ctx.fillStyle = circGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
-  ctx.globalAlpha = 1;
 
   // Diagonal stripe for split layout
   if (layout === "split-diagonal") {
@@ -364,14 +404,55 @@ export default function ThumbnailGenerator() {
   const [reasoning, setReasoning] = useState("");
   const [error, setError] = useState("");
   const [generated, setGenerated] = useState(false);
+  const [backgroundImage, setBackgroundImage] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const previewCanvasRef = useRef(null);
+  const fileInputRef = useRef(null);
 
-  // Redraw canvas whenever config changes
+  // Redraw canvas whenever config or background image changes
   useEffect(() => {
     if (config && previewCanvasRef.current) {
-      renderThumbnail(previewCanvasRef.current, config);
+      renderThumbnail(previewCanvasRef.current, config, backgroundImage);
     }
-  }, [config]);
+  }, [config, backgroundImage]);
+
+  // Handle image upload
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError("Please upload an image file (JPG, PNG, etc.)");
+      return;
+    }
+    
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setImagePreviewUrl(url);
+    
+    // Load image for canvas
+    const img = new Image();
+    img.onload = () => {
+      setBackgroundImage(img);
+      // Set default darkness if not set
+      if (config && config.imageDarkness === undefined) {
+        setConfig({ ...config, imageDarkness: 0.5 });
+      }
+    };
+    img.src = url;
+  };
+
+  const handleRemoveImage = () => {
+    setBackgroundImage(null);
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+      setImagePreviewUrl(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleGenerate = async () => {
     if (!script.trim()) {
@@ -394,6 +475,7 @@ export default function ThumbnailGenerator() {
         emojis: result.emojis || [],
         colorScheme: COLOR_SCHEMES[result.colorSchemeIndex] || COLOR_SCHEMES[0],
         layout: LAYOUT_STYLES[result.layoutIndex] || LAYOUT_STYLES[0],
+        imageDarkness: backgroundImage ? 0.5 : undefined,
       };
 
       setConfig(thumbnailConfig);
@@ -421,7 +503,7 @@ export default function ThumbnailGenerator() {
   const handleDownload = () => {
     if (!previewCanvasRef.current || !config) return;
     const dlCanvas = document.createElement("canvas");
-    renderThumbnail(dlCanvas, config);
+    renderThumbnail(dlCanvas, config, backgroundImage);
     const link = document.createElement("a");
     link.download = `thumbnail-${Date.now()}.png`;
     link.href = dlCanvas.toDataURL("image/png");
@@ -600,6 +682,93 @@ export default function ThumbnailGenerator() {
             <p style={{ color: "#ff6b6b", fontSize: "14px", marginTop: "14px", textAlign: "center", lineHeight: 1.5 }}>
               {error}
             </p>
+          )}
+        </div>
+
+        {/* ─── Background Image Upload (optional) ─── */}
+        <div style={s.card}>
+          <label style={s.label}>Background Image (Optional)</label>
+          <p style={{ fontSize: "13px", color: "#666", marginBottom: "16px", lineHeight: 1.5 }}>
+            Upload a face, video still, or product shot. The AI text will overlay on top with automatic darkening.
+          </p>
+          
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            style={{ display: "none" }}
+          />
+          
+          {!backgroundImage ? (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: "100%", padding: "40px 20px",
+                background: "rgba(255,255,255,0.03)",
+                border: "2px dashed rgba(255,255,255,0.15)",
+                borderRadius: "14px", cursor: "pointer",
+                color: "#888", fontSize: "14px", fontWeight: 500,
+                transition: "all 0.2s",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,80,80,0.4)";
+                e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+              }}
+            >
+              📷 Click to upload image
+            </button>
+          ) : (
+            <div style={{ position: "relative" }}>
+              <img
+                src={imagePreviewUrl}
+                alt="Background preview"
+                style={{
+                  width: "100%", maxHeight: "200px",
+                  objectFit: "cover", borderRadius: "12px",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                }}
+              />
+              <button
+                onClick={handleRemoveImage}
+                style={{
+                  position: "absolute", top: "10px", right: "10px",
+                  background: "rgba(0,0,0,0.7)", border: "none",
+                  borderRadius: "8px", padding: "8px 12px",
+                  color: "#fff", fontSize: "12px", fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ✕ Remove
+              </button>
+            </div>
+          )}
+          
+          {/* Darkness slider - only show when image is uploaded */}
+          {backgroundImage && config && (
+            <div style={{ marginTop: "16px" }}>
+              <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "8px" }}>
+                Image Darkening: {Math.round((config.imageDarkness ?? 0.5) * 100)}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="0.8"
+                step="0.05"
+                value={config.imageDarkness ?? 0.5}
+                onChange={(e) => setConfig({ ...config, imageDarkness: parseFloat(e.target.value) })}
+                style={{
+                  width: "100%", height: "6px",
+                  background: "rgba(255,255,255,0.1)",
+                  borderRadius: "3px", outline: "none",
+                  cursor: "pointer",
+                }}
+              />
+            </div>
           )}
         </div>
 
