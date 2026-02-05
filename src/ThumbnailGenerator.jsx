@@ -301,9 +301,10 @@ Color schemes (by index): 0=Danger Red, 1=Electric Blue, 2=Fire Orange, 3=Royal 
 Layouts (by index): 0=centered-impact, 1=split-diagonal, 2=bottom-heavy, 3=top-banner, 4=corner-burst`;
 
 async function analyzeScript(script, apiKey) {
-  // Try serverless function first, fall back to direct API call
+  // Try serverless function first (if available), fall back to direct API call
   const useProxy = !apiKey;
 
+  // Always try proxy first when no client key provided
   const endpoint = useProxy ? "/api/analyze" : "https://api.anthropic.com/v1/messages";
 
   const body = {
@@ -377,18 +378,14 @@ export default function ThumbnailGenerator() {
       setError("Please paste your video script first!");
       return;
     }
-    if (!apiKey.trim()) {
-      setError("Please enter your Anthropic API key. Your key stays in your browser and is never stored.");
-      setShowApiKey(true);
-      return;
-    }
 
     setError("");
     setLoading(true);
     setGenerated(false);
 
     try {
-      const result = await analyzeScript(script.trim(), apiKey.trim());
+      // Try with provided key, or let it use server proxy if no key
+      const result = await analyzeScript(script.trim(), apiKey.trim() || null);
 
       const thumbnailConfig = {
         headline: result.headline,
@@ -406,10 +403,15 @@ export default function ThumbnailGenerator() {
       console.error(err);
       if (err.message.includes("401")) {
         setError("Invalid API key. Please check your Anthropic API key and try again.");
+        setShowApiKey(true);
       } else if (err.message.includes("429")) {
         setError("Rate limited. Please wait a moment and try again.");
+      } else if (err.message.includes("ANTHROPIC_API_KEY not configured") || err.message.includes("500")) {
+        // Server proxy not configured, need client-side key
+        setError("Please enter your Anthropic API key to use this tool.");
+        setShowApiKey(true);
       } else {
-        setError(`Error: ${err.message}. Check your API key or try again.`);
+        setError(`Error: ${err.message}`);
       }
     } finally {
       setLoading(false);
@@ -531,34 +533,36 @@ export default function ThumbnailGenerator() {
           </p>
         </div>
 
-        {/* ─── API Key ─── */}
-        <div style={s.card}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <span style={s.label}>Anthropic API Key</span>
-            <button
-              onClick={() => setShowApiKey(!showApiKey)}
-              style={{
-                background: "none", border: "none", color: "#666",
-                fontSize: "12px", cursor: "pointer", textDecoration: "underline",
-              }}
-            >
-              {showApiKey ? "hide" : "show"}
-            </button>
+        {/* ─── API Key (optional - only shown if server proxy unavailable) ─── */}
+        {showApiKey && (
+          <div style={s.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <span style={s.label}>Anthropic API Key</span>
+              <button
+                onClick={() => setShowApiKey(false)}
+                style={{
+                  background: "none", border: "none", color: "#666",
+                  fontSize: "12px", cursor: "pointer", textDecoration: "underline",
+                }}
+              >
+                hide
+              </button>
+            </div>
+            <input
+              type="text"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-ant-..."
+              style={s.input}
+            />
+            <p style={{ fontSize: "12px", color: "#555", marginTop: "8px", lineHeight: 1.5 }}>
+              Your key is used client-side only and never sent to any server besides Anthropic. Get a key at{" "}
+              <a href="https://console.anthropic.com/" target="_blank" rel="noopener" style={{ color: "#ff6b6b" }}>
+                console.anthropic.com
+              </a>
+            </p>
           </div>
-          <input
-            type={showApiKey ? "text" : "password"}
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-ant-..."
-            style={s.input}
-          />
-          <p style={{ fontSize: "12px", color: "#555", marginTop: "8px", lineHeight: 1.5 }}>
-            Your key is used client-side only and never sent to any server besides Anthropic. Get a key at{" "}
-            <a href="https://console.anthropic.com/" target="_blank" rel="noopener" style={{ color: "#ff6b6b" }}>
-              console.anthropic.com
-            </a>
-          </p>
-        </div>
+        )}
 
         {/* ─── Script Input ─── */}
         <div style={s.card}>
