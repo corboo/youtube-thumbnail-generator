@@ -528,18 +528,84 @@ export default function ThumbnailGenerator() {
       background: "linear-gradient(145deg, #0a0a0f 0%, #111128 40%, #0d0d1a 100%)",
       color: "#e8e8f0",
       padding: 0,
+      position: "relative",
+      overflow: "hidden",
+    },
+    rainbowBg: {
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+      background: "linear-gradient(135deg, rgba(255,0,0,0.03) 0%, rgba(255,127,0,0.03) 14%, rgba(255,255,0,0.03) 28%, rgba(0,255,0,0.03) 42%, rgba(0,0,255,0.03) 57%, rgba(75,0,130,0.03) 71%, rgba(148,0,211,0.03) 85%, rgba(255,0,0,0.03) 100%)",
+      pointerEvents: "none", zIndex: 0,
     },
     glow1: {
       position: "fixed", top: "-200px", right: "-200px",
       width: "600px", height: "600px",
-      background: "radial-gradient(circle, rgba(255,50,50,0.08) 0%, transparent 70%)",
+      background: "radial-gradient(circle, rgba(255,100,200,0.12) 0%, rgba(255,50,100,0.06) 40%, transparent 70%)",
       pointerEvents: "none", zIndex: 0,
     },
     glow2: {
       position: "fixed", bottom: "-200px", left: "-100px",
       width: "500px", height: "500px",
-      background: "radial-gradient(circle, rgba(50,100,255,0.06) 0%, transparent 70%)",
+      background: "radial-gradient(circle, rgba(100,200,255,0.1) 0%, rgba(50,100,255,0.06) 40%, transparent 70%)",
       pointerEvents: "none", zIndex: 0,
+    },
+    glow3: {
+      position: "fixed", top: "30%", left: "-150px",
+      width: "400px", height: "400px",
+      background: "radial-gradient(circle, rgba(255,200,50,0.08) 0%, transparent 60%)",
+      pointerEvents: "none", zIndex: 0,
+    },
+    glow4: {
+      position: "fixed", top: "60%", right: "-100px",
+      width: "350px", height: "350px",
+      background: "radial-gradient(circle, rgba(100,255,150,0.08) 0%, transparent 60%)",
+      pointerEvents: "none", zIndex: 0,
+    },
+    unicorn1: {
+      position: "fixed", top: "15%", left: "5%",
+      fontSize: "40px", opacity: 0.15,
+      pointerEvents: "none", zIndex: 0,
+      transform: "rotate(-15deg)",
+    },
+    unicorn2: {
+      position: "fixed", bottom: "20%", right: "8%",
+      fontSize: "50px", opacity: 0.12,
+      pointerEvents: "none", zIndex: 0,
+      transform: "rotate(10deg)",
+    },
+    unicorn3: {
+      position: "fixed", top: "50%", right: "3%",
+      fontSize: "30px", opacity: 0.1,
+      pointerEvents: "none", zIndex: 0,
+      transform: "rotate(-5deg)",
+    },
+    rainbow1: {
+      position: "fixed", top: "10%", right: "15%",
+      fontSize: "35px", opacity: 0.15,
+      pointerEvents: "none", zIndex: 0,
+    },
+    rainbow2: {
+      position: "fixed", bottom: "30%", left: "10%",
+      fontSize: "45px", opacity: 0.12,
+      pointerEvents: "none", zIndex: 0,
+      transform: "scaleX(-1)",
+    },
+    sparkle1: {
+      position: "fixed", top: "25%", left: "20%",
+      fontSize: "25px", opacity: 0.2,
+      pointerEvents: "none", zIndex: 0,
+      animation: "sparkle 2s ease-in-out infinite",
+    },
+    sparkle2: {
+      position: "fixed", top: "70%", right: "25%",
+      fontSize: "20px", opacity: 0.18,
+      pointerEvents: "none", zIndex: 0,
+      animation: "sparkle 2.5s ease-in-out infinite 0.5s",
+    },
+    sparkle3: {
+      position: "fixed", bottom: "15%", left: "30%",
+      fontSize: "22px", opacity: 0.15,
+      pointerEvents: "none", zIndex: 0,
+      animation: "sparkle 3s ease-in-out infinite 1s",
     },
     container: { position: "relative", zIndex: 1, maxWidth: "960px", margin: "0 auto", padding: "40px 24px 80px" },
     card: {
@@ -584,8 +650,19 @@ export default function ThumbnailGenerator() {
 
   return (
     <div style={s.page}>
+      <div style={s.rainbowBg} />
       <div style={s.glow1} />
       <div style={s.glow2} />
+      <div style={s.glow3} />
+      <div style={s.glow4} />
+      <div style={s.unicorn1}>🦄</div>
+      <div style={s.unicorn2}>🦄</div>
+      <div style={s.unicorn3}>🦄</div>
+      <div style={s.rainbow1}>🌈</div>
+      <div style={s.rainbow2}>🌈</div>
+      <div style={s.sparkle1}>✨</div>
+      <div style={s.sparkle2}>✨</div>
+      <div style={s.sparkle3}>✨</div>
 
       <div style={s.container}>
         {/* ─── Header ─── */}
@@ -909,6 +986,8 @@ export default function ThumbnailGenerator() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes sparkle { 0%, 100% { opacity: 0.2; transform: scale(1); } 50% { opacity: 0.35; transform: scale(1.2); } }
+        @keyframes float { 0%, 100% { transform: translateY(0px) rotate(-15deg); } 50% { transform: translateY(-10px) rotate(-15deg); } }
         textarea::placeholder { color: rgba(255,255,255,0.25); }
         input:focus { border-color: rgba(255,80,80,0.4) !important; }
         button:hover { filter: brightness(1.1); }
